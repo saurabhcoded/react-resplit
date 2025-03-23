@@ -1,4 +1,5 @@
 import {
+  MutableRefObject,
   HTMLAttributes,
   ReactNode,
   forwardRef,
@@ -33,10 +34,16 @@ import type { ResplitSplitterOptions } from './Splitter';
  *
  * @see {@link PaneOptions} for the public API.
  */
-export interface PaneChild extends ResplitPaneOptions {
+export interface PaneChild {
   type: 'pane';
-  minSize: PxValue | FrValue;
-  collapsedSize: PxValue | FrValue;
+  onCollapse?: (paneSize: string) => void;
+  onExpand?: (paneSize: string) => void;
+  options: MutableRefObject<
+    ResplitPaneOptions & {
+      minSize: PxValue | FrValue;
+      collapsedSize: PxValue | FrValue;
+    }
+  >;
 }
 
 /**
@@ -46,9 +53,13 @@ export interface PaneChild extends ResplitPaneOptions {
  *
  * @see {@link SplitterOptions} for the public API.
  */
-export interface SplitterChild extends ResplitSplitterOptions {
+export interface SplitterChild {
   type: 'splitter';
-  size: PxValue;
+  options: MutableRefObject<
+    ResplitSplitterOptions & {
+      size: PxValue;
+    }
+  >;
 }
 
 /**
@@ -203,8 +214,8 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
 
         if (
           child.type === 'splitter' ||
-          (isPaneMinSize(index) && !child.collapsible) ||
-          (isPaneMinSize(index) && child.collapsible && isPaneCollapsed(index))
+          (isPaneMinSize(index) && !child.options.current.collapsible) ||
+          (isPaneMinSize(index) && child.options.current.collapsible && isPaneCollapsed(index))
         ) {
           index += direction;
           pane = null;
@@ -238,22 +249,24 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
 
       const rootSize = getRootSize();
 
+      const prevPaneOptions = prevPane.options.current;
       let prevPaneSize = getChildSizeAsNumber(prevPaneIndex) + delta;
-      const prevPaneMinSize = convertFrToNumber(convertSizeToFr(prevPane.minSize, rootSize));
+      const prevPaneMinSize = convertFrToNumber(convertSizeToFr(prevPaneOptions.minSize, rootSize));
       const prevPaneisPaneMinSize = prevPaneSize <= prevPaneMinSize;
       const prevPaneisPaneCollapsed =
-        !!prevPane.collapsible && prevPaneSize <= prevPaneMinSize / 1.5;
+        !!prevPaneOptions.collapsible && prevPaneSize <= prevPaneMinSize / 2;
 
+      const nextPaneOptions = nextPane.options.current;
       let nextPaneSize = getChildSizeAsNumber(nextPaneIndex) - delta;
-      const nextPaneMinSize = convertFrToNumber(convertSizeToFr(nextPane.minSize, rootSize));
+      const nextPaneMinSize = convertFrToNumber(convertSizeToFr(nextPaneOptions.minSize, rootSize));
       const nextPaneisPaneMinSize = nextPaneSize <= nextPaneMinSize;
       const nextPaneisPaneCollapsed =
-        !!nextPane.collapsible && nextPaneSize <= nextPaneMinSize / 1.5;
+        !!nextPaneOptions.collapsible && nextPaneSize <= nextPaneMinSize / 2;
 
       if (prevPaneisPaneCollapsed || nextPaneisPaneCollapsed) {
         if (prevPaneisPaneCollapsed) {
           const prevPaneCollapsedSize = convertFrToNumber(
-            convertSizeToFr(prevPane.collapsedSize, rootSize),
+            convertSizeToFr(prevPaneOptions.collapsedSize, rootSize),
           );
           nextPaneSize = nextPaneSize + prevPaneSize - prevPaneCollapsedSize;
           prevPaneSize = prevPaneCollapsedSize;
@@ -261,7 +274,7 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
 
         if (nextPaneisPaneCollapsed) {
           const nextPaneCollapsedSize = convertFrToNumber(
-            convertSizeToFr(nextPane.collapsedSize, rootSize),
+            convertSizeToFr(nextPaneOptions.collapsedSize, rootSize),
           );
           prevPaneSize = prevPaneSize + nextPaneSize - nextPaneCollapsedSize;
           nextPaneSize = nextPaneCollapsedSize;
@@ -283,19 +296,18 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
       const prevPaneCollapseEmit = isPaneExpanded(prevPaneIndex) && prevPaneisPaneCollapsed;
       const prevPaneExpandEmit = isPaneCollapsed(prevPaneIndex) && !prevPaneisPaneCollapsed;
       setIsPaneCollapsed(prevPaneIndex, prevPaneisPaneCollapsed);
-      prevPane?.onResize?.(`${prevPaneSize}fr`);
+      prevPaneOptions.onResize?.(`${prevPaneSize}fr`);
       if (prevPaneCollapseEmit) {
         prevPane?.onCollapse?.(`${prevPaneSize}fr`);
       } else if (prevPaneExpandEmit) {
         prevPane?.onExpand?.(`${prevPaneSize}fr`);
       }
-
       setChildSize(nextPaneIndex, `${nextPaneSize}fr`);
       setIsPaneMinSize(nextPaneIndex, nextPaneisPaneMinSize);
       const nextPaneCollapseEmit = isPaneExpanded(nextPaneIndex) && nextPaneisPaneCollapsed;
       const nextPaneExpandEmit = isPaneCollapsed(nextPaneIndex) && !nextPaneisPaneCollapsed;
       setIsPaneCollapsed(nextPaneIndex, nextPaneisPaneCollapsed);
-      nextPane?.onResize?.(`${nextPaneSize}fr`);
+      nextPaneOptions.onResize?.(`${nextPaneSize}fr`);
       if (nextPaneCollapseEmit) {
         prevPane?.onCollapse?.(`${prevPaneSize}fr`);
       } else if (nextPaneExpandEmit) {
@@ -369,10 +381,12 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
     }
 
     const prevPane = children[order - 1];
-    if (prevPane.type === 'pane') prevPane.onResizeEnd?.(getChildSize(order - 1) as FrValue);
+    if (prevPane.type === 'pane')
+      prevPane.options.current.onResizeEnd?.(getChildSize(order - 1) as FrValue);
 
     const nextPane = children[order + 1];
-    if (nextPane.type === 'pane') nextPane.onResizeEnd?.(getChildSize(order + 1) as FrValue);
+    if (nextPane.type === 'pane')
+      nextPane.options.current.onResizeEnd?.(getChildSize(order + 1) as FrValue);
 
     // Unset refs
     activeSplitterOrder.current = null;
@@ -405,10 +419,10 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
       }
 
       const prevPane = children[order - 1];
-      if (prevPane.type === 'pane') prevPane.onResizeStart?.();
+      if (prevPane.type === 'pane') prevPane.options.current.onResizeStart?.();
 
       const nextPane = children[order + 1];
-      if (nextPane.type === 'pane') nextPane.onResizeStart?.();
+      if (nextPane.type === 'pane') nextPane.options.current.onResizeStart?.();
 
       // Disable text selection and cursor
       document.documentElement.style.cursor = CURSOR_BY_DIRECTION[direction];
@@ -446,7 +460,8 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
         resizeByDelta(splitterOrder, 1);
       } else if (e.key === 'Enter') {
         if (isPaneMinSize(splitterOrder - 1)) {
-          const initialSize = (children[splitterOrder - 1] as PaneChild).initialSize || '1fr';
+          const initialSize =
+            (children[splitterOrder - 1] as PaneChild).options.current.initialSize || '1fr';
           resizeByDelta(splitterOrder, convertFrToNumber(initialSize));
         } else {
           resizeByDelta(splitterOrder, -1);
@@ -456,43 +471,51 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
     [direction, children, resizeByDelta, isPaneMinSize],
   );
 
-  const registerPane = useCallback((order: string, options: ResplitPaneOptions) => {
-    setChildren((children) => ({
-      ...children,
-      [order]: {
-        type: 'pane',
-        ...options,
-      },
-    }));
-  }, []);
+  const registerPane = useCallback(
+    (order: string, options: MutableRefObject<ResplitPaneOptions>) => {
+      setChildren((children) => ({
+        ...children,
+        [order]: {
+          type: 'pane',
+          options,
+        },
+      }));
+    },
+    [],
+  );
 
-  const registerSplitter = useCallback((order: string, options: ResplitSplitterOptions) => {
-    setChildren((children) => ({
-      ...children,
-      [order]: {
-        type: 'splitter',
-        ...options,
-      },
-    }));
-  }, []);
+  const registerSplitter = useCallback(
+    (order: string, options: MutableRefObject<ResplitSplitterOptions>) => {
+      setChildren((children) => ({
+        ...children,
+        [order]: {
+          type: 'splitter',
+          options,
+        },
+      }));
+    },
+    [],
+  );
 
   const setPaneSizes = useCallback(
     (paneSizes: FrValue[]) => {
-      try {
-        paneSizes.forEach((paneSize, index) => {
-          const order = index * 2;
-          setChildSize(order, paneSize);
-          setIsPaneMinSize(order, (children[order] as PaneChild)?.minSize === paneSize);
-          setIsPaneCollapsed(order, (children[order] as PaneChild)?.collapsedSize === paneSize);
+      paneSizes.forEach((paneSize, index) => {
+        const order = index * 2;
+        setChildSize(order, paneSize);
+        setIsPaneMinSize(
+          order,
+          (children[order] as PaneChild).options.current.minSize === paneSize,
+        );
+        setIsPaneCollapsed(
+          order,
+          (children[order] as PaneChild).options.current.collapsedSize === paneSize,
+        );
 
-          const pane = children[order] as PaneChild;
-          if (pane?.type === 'pane') {
-            pane?.onResize?.(paneSize);
-          }
-        });
-      } catch (error) {
-        throw new Error('Error while setting pane sizes!');
-      }
+        const pane = children[order] as PaneChild;
+        if (pane.type === 'pane') {
+          pane.options.current.onResize?.(paneSize);
+        }
+      });
     },
     [children, setChildSize, setIsPaneMinSize, setIsPaneCollapsed],
   );
@@ -509,20 +532,12 @@ export const ResplitRoot = forwardRef<HTMLDivElement, ResplitRootProps>(function
       const child = children[order];
 
       if (child.type === 'pane') {
-        // Enhancement: Updated the defaultCollapsed Functionality
-        let paneSize;
-        if (isPaneDefaultCollapse(order) && Boolean(child?.collapsedSize)) {
-          paneSize = convertSizeToFr(child?.collapsedSize, getRootSize());
-        } else {
-          let initialPaneSize: FrValue = `${1 / paneCount}fr`;
-          if (child.initialSize !== undefined && convertFrToNumber(child.initialSize) < 1) {
-            initialPaneSize = child.initialSize;
-          }
-          paneSize = isPaneMinSize(order) ? '0fr' : initialPaneSize;
-        }
+        const paneSize = isPaneMinSize(order)
+          ? '0fr'
+          : child.options.current.initialSize || `${1 / paneCount}fr`;
         setChildSize(order, paneSize);
       } else {
-        setChildSize(order, child.size);
+        setChildSize(order, child.options.current.size);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

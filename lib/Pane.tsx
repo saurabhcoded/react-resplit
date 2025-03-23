@@ -1,5 +1,5 @@
-import {ReactNode, HTMLAttributes, forwardRef} from 'react';
-import {Slot} from '@radix-ui/react-slot';
+import { ReactNode, HTMLAttributes, forwardRef, useRef, useEffect } from 'react';
+import { Slot } from '@radix-ui/react-slot';
 
 import {useRootContext} from './RootContext';
 import {PANE_DEFAULT_COLLAPSED_SIZE, PANE_DEFAULT_MIN_SIZE} from './const';
@@ -145,8 +145,22 @@ export const ResplitPane = forwardRef<HTMLDivElement, ResplitPaneProps>(function
   const Comp = asChild ? Slot : 'div';
   const { id, registerPane } = useRootContext();
 
+  const paneOptionsRef = useRef<ResplitPaneOptions>({
+    minSize,
+    initialSize,
+    collapsedSize,
+    collapsible,
+    onResize,
+    onResizeStart,
+    onResizeEnd,
+  });
+
   useIsomorphicLayoutEffect(() => {
-    registerPane(String(order), {
+    registerPane(String(order), paneOptionsRef);
+  }, []);
+
+  useEffect(() => {
+    paneOptionsRef.current = {
       minSize,
       initialSize,
       collapsedSize,
@@ -156,8 +170,8 @@ export const ResplitPane = forwardRef<HTMLDivElement, ResplitPaneProps>(function
       onResizeEnd,
       onCollapse,
       onExpand,
-    });
-  }, []);
+    };
+  }, [minSize, initialSize, collapsedSize, collapsible, onResize, onResizeStart, onResizeEnd]);
 
   return (
     <Comp
