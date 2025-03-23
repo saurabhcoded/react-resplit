@@ -1,4 +1,4 @@
-# react-resplit
+# react-split-viewer
 
 Resizable split pane layouts for React applications 🖖
 
@@ -6,8 +6,6 @@ Resizable split pane layouts for React applications 🖖
 - Built with modern CSS, a grid-based layout and custom properties
 - Works with any amount of panes in a vertical or horizontal layout
 - Built following the [Window Splitter](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/) pattern for accessibility and keyboard controls
-
-https://github.com/saurabhcoded/react-resplit/assets/9557798/d47ef278-bcb1-4c2b-99e6-7a9f99943f96
 
 _Example of a code editor built with `react-resplit`_
 
@@ -28,13 +26,13 @@ The files for the development app can be found in `src`, and the library files i
 Install the package using your package manager of choice.
 
 ```
-npm install react-resplit
+npm install react-split-viewer
 ```
 
-Import `Resplit` from `react-resplit` and render the Root, Pane(s) and Splitter(s).
+Import `Resplit` from `react-split-viewer` and render the Root, Pane(s) and Splitter(s).
 
 ```tsx
-import { Resplit } from 'react-resplit';
+import { Resplit } from 'react-split-viewer';
 
 function App() {
   return (
@@ -168,7 +166,7 @@ Get the collapsed state of a pane.
 **Note**: The returned value will not update on every render and should be used in a callback e.g. used in combination with a pane's `onResize` callback.
 
 ```tsx
-import { Resplit, useResplitContext, ResplitPaneProps, FrValue } from 'react-resplit';
+import { Resplit, useResplitContext, ResplitPaneProps, FrValue } from 'react-split-viewer';
 
 function CustomPane(props: ResplitPaneProps) {
   const { isPaneCollapsed } = useResplitContext();
@@ -208,7 +206,7 @@ Get the min size state of a pane.
 **Note**: The returned value will not update on every render and should be used in a callback e.g. used in combination with a pane's `onResize` callback.
 
 ```tsx
-import { Resplit, useResplitContext, ResplitPaneProps, FrValue } from 'react-resplit';
+import { Resplit, useResplitContext, ResplitPaneProps, FrValue } from 'react-split-viewer';
 
 function CustomPane(props: ResplitPaneProps) {
   const { isPaneMinSize } = useResplitContext();
